@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:superheroes/blocs/main_bloc.dart';
 import 'package:superheroes/resources/superheroes_colors.dart';
 
@@ -14,10 +15,13 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: SuperheroesColors.background,
-      body: SafeArea(
-        child: MainPageContent(bloc: bloc),
+    return Provider.value(
+      value: bloc,
+      child: Scaffold(
+        backgroundColor: SuperheroesColors.background,
+        body: SafeArea(
+          child: MainPageContent(),
+        ),
       ),
     );
   }
@@ -30,43 +34,13 @@ class _MainPageState extends State<MainPage> {
 }
 
 class MainPageContent extends StatelessWidget {
-  final MainBloc bloc;
-
-  const MainPageContent({
-    Key? key,
-    required this.bloc,
-  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final MainBloc bloc = Provider.of<MainBloc>(context);
     return Stack(
       children: [
-        StreamBuilder<MainPageState>(
-          stream: bloc.observeMainPageState(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData || snapshot.data == null) {
-              return Container();
-            }
-
-            final MainPageState state = snapshot.data!;
-            switch (state) {
-              case MainPageState.loading:
-                return LoadingIndicator();
-              case MainPageState.noFavorites:
-              case MainPageState.minSymbols:
-              case MainPageState.nothingFound:
-              case MainPageState.loadingError:
-              case MainPageState.searchResults:
-              case MainPageState.favorites:
-              default:
-                return Center(
-                    child: Text(
-                  state.toString(),
-                  style: TextStyle(color: Colors.white),
-                ));
-            }
-          },
-        ),
+        MainPageStateWidget(),
         Align(
           alignment: Alignment.bottomCenter,
           child: GestureDetector(
@@ -78,6 +52,40 @@ class MainPageContent extends StatelessWidget {
           ),
         )
       ],
+    );
+  }
+}
+
+class MainPageStateWidget extends StatelessWidget {
+
+  @override
+  Widget build(BuildContext context) {
+    final MainBloc bloc = Provider.of<MainBloc>(context);
+    return StreamBuilder<MainPageState>(
+      stream: bloc.observeMainPageState(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Container();
+        }
+
+        final MainPageState state = snapshot.data!;
+        switch (state) {
+          case MainPageState.loading:
+            return LoadingIndicator();
+          case MainPageState.noFavorites:
+          case MainPageState.minSymbols:
+          case MainPageState.nothingFound:
+          case MainPageState.loadingError:
+          case MainPageState.searchResults:
+          case MainPageState.favorites:
+          default:
+            return Center(
+                child: Text(
+                  state.toString(),
+                  style: TextStyle(color: Colors.white),
+                ));
+        }
+      },
     );
   }
 }
