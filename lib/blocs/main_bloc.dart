@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:rxdart/rxdart.dart';
+import 'package:superheroes/exception/api_exception.dart';
 import 'package:superheroes/model/superhero.dart';
 
 class MainBloc {
@@ -28,7 +29,6 @@ class MainBloc {
       (searchText, favorites) =>
           MainPageStateInfo(searchText, favorites.isNotEmpty),
     ).listen((value) {
-      // print("CHANGED $value");
       searchSubscription?.cancel();
       if (value.searchText.isEmpty) {
         if (value.haveFavorites) {
@@ -58,6 +58,11 @@ class MainBloc {
     });
   }
 
+  void retry() {
+    final currentText = currentTextSubject.value;
+    searchForSuperheroes(currentText);
+  }
+
   Stream<List<SuperheroInfo>> observeFavoriteSuperheroes() =>
       favoriteSuperheroSubject;
 
@@ -68,6 +73,13 @@ class MainBloc {
     final token = dotenv.env["SUPERHERO_TOKEN"];
     final response = await (client ??= http.Client())
         .get(Uri.parse("https://superheroapi.com/api/$token/search/$text"));
+    if(response.statusCode >= 500 && response.statusCode < 599) {
+      throw ApiException("Server error happened");
+    }
+    if(response.statusCode >= 400 && response.statusCode < 499) {
+      throw ApiException("Client error happened");
+    }
+
     final decoded = json.decode(response.body);
 
     if (decoded['response'] == 'success') {
@@ -88,6 +100,7 @@ class MainBloc {
       if (decoded['error'] == 'character with given name not found') {
         return [];
       }
+      throw ApiException("Client error happened");
     }
     throw Exception("Unknown error happened");
   }
