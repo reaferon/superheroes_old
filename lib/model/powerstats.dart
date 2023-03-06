@@ -20,6 +20,14 @@ class Powerstats {
     required this.combat,
   });
 
+  bool isNotNull() =>
+    intelligence != "null" &&
+    strength != "null" &&
+    speed != "null" &&
+    durability != "null" &&
+    power != "null" &&
+    combat != "null";
+
   factory Powerstats.fromJson(final Map<String, dynamic> json) =>
       _$PowerstatsFromJson(json);
 
