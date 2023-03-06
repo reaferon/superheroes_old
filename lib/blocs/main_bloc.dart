@@ -1,6 +1,9 @@
 import 'dart:async';
-
+import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:rxdart/rxdart.dart';
+import 'package:superheroes/model/superhero.dart';
 
 class MainBloc {
   static const minSymbols = 3;
@@ -13,7 +16,9 @@ class MainBloc {
   StreamSubscription? textSubscription;
   StreamSubscription? searchSubscription;
 
-  MainBloc() {
+  http.Client? client;
+
+  MainBloc({this.client}) {
     stateSubject.add(MainPageState.noFavorites);
 
     textSubscription =
@@ -26,7 +31,7 @@ class MainBloc {
       // print("CHANGED $value");
       searchSubscription?.cancel();
       if (value.searchText.isEmpty) {
-        if(value.haveFavorites) {
+        if (value.haveFavorites) {
           stateSubject.add(MainPageState.favorites);
         } else {
           stateSubject.add(MainPageState.noFavorites);
@@ -60,19 +65,42 @@ class MainBloc {
       searchedSuperheroSubject;
 
   Future<List<SuperheroInfo>> search(final String text) async {
-    await Future.delayed(Duration(seconds: 1));
-    return SuperheroInfo.mocked
-        .where((superheroInfo) => superheroInfo.name.toLowerCase().contains(text.toLowerCase())).toList();
+    final token = dotenv.env["SUPERHERO_TOKEN"];
+    final response = await (client ??= http.Client())
+        .get(Uri.parse("https://superheroapi.com/api/$token/search/$text"));
+    final decoded = json.decode(response.body);
+
+    if (decoded['response'] == 'success') {
+      final List<dynamic> results = decoded['results'];
+      final List<Superhero> superheroes = results
+          .map((rawSuperhero) => Superhero.fromJson(rawSuperhero))
+          .toList();
+      final List<SuperheroInfo> found = superheroes.map((superhero) {
+        return SuperheroInfo(
+            name: superhero.name,
+            realName: superhero.biography.fullName,
+            imageUrl: superhero.image.url
+        );
+      }).toList();
+
+      return found;
+    } else if (decoded['response'] == 'error') {
+      if (decoded['error'] == 'character with given name not found') {
+        return [];
+      }
+    }
+    throw Exception("Unknown error happened");
   }
 
   Stream<MainPageState> observeMainPageState() => stateSubject;
 
   void removeFavorite() {
     final List<SuperheroInfo> currentFavorites = favoriteSuperheroSubject.value;
-    if(currentFavorites.isEmpty) {
+    if (currentFavorites.isEmpty) {
       favoriteSuperheroSubject.add(SuperheroInfo.mocked);
     } else {
-      favoriteSuperheroSubject.add(currentFavorites.sublist(0, currentFavorites.length - 1));
+      favoriteSuperheroSubject
+          .add(currentFavorites.sublist(0, currentFavorites.length - 1));
     }
   }
 
@@ -93,7 +121,7 @@ class MainBloc {
     favoriteSuperheroSubject.close();
     searchedSuperheroSubject.close();
     currentTextSubject.close();
-
+    client?.close();
     textSubscription?.cancel();
   }
 }
