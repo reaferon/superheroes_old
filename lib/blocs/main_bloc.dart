@@ -4,13 +4,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:rxdart/rxdart.dart';
 import 'package:superheroes/exception/api_exception.dart';
+import 'package:superheroes/favorite_superheroes_storage.dart';
 import 'package:superheroes/model/superhero.dart';
 
 class MainBloc {
   static const minSymbols = 3;
   final BehaviorSubject<MainPageState> stateSubject = BehaviorSubject();
-  final favoriteSuperheroSubject =
-      BehaviorSubject<List<SuperheroInfo>>.seeded([]);
+
   final searchedSuperheroSubject = BehaviorSubject<List<SuperheroInfo>>();
   final currentTextSubject = BehaviorSubject<String>.seeded("");
 
@@ -23,9 +23,9 @@ class MainBloc {
     stateSubject.add(MainPageState.noFavorites);
 
     textSubscription =
-        Rx.combineLatest2<String, List<SuperheroInfo>, MainPageStateInfo>(
+        Rx.combineLatest2<String, List<Superhero>, MainPageStateInfo>(
       currentTextSubject.distinct().debounceTime(Duration(milliseconds: 500)),
-      favoriteSuperheroSubject,
+      FavoriteSuperheroesStorage.getInstance().observeFavoriteSuperheroes(),
       (searchText, favorites) =>
           MainPageStateInfo(searchText, favorites.isNotEmpty),
     ).listen((value) {
@@ -63,8 +63,13 @@ class MainBloc {
     searchForSuperheroes(currentText);
   }
 
-  Stream<List<SuperheroInfo>> observeFavoriteSuperheroes() =>
-      favoriteSuperheroSubject;
+  Stream<List<SuperheroInfo>> observeFavoriteSuperheroes() {
+    return FavoriteSuperheroesStorage.getInstance().observeFavoriteSuperheroes().map(
+            (superheroes) =>
+            superheroes
+                .map((superhero) => SuperheroInfo.fromSuperhero(superhero))
+                .toList());
+  }
 
   Stream<List<SuperheroInfo>> observeSearchedSuperheroes() =>
       searchedSuperheroSubject;
@@ -73,10 +78,10 @@ class MainBloc {
     final token = dotenv.env["SUPERHERO_TOKEN"];
     final response = await (client ??= http.Client())
         .get(Uri.parse("https://superheroapi.com/api/$token/search/$text"));
-    if(response.statusCode >= 500 && response.statusCode < 599) {
+    if (response.statusCode >= 500 && response.statusCode < 599) {
       throw ApiException("Server error happened");
     }
-    if(response.statusCode >= 400 && response.statusCode < 499) {
+    if (response.statusCode >= 400 && response.statusCode < 499) {
       throw ApiException("Client error happened");
     }
 
@@ -88,12 +93,7 @@ class MainBloc {
           .map((rawSuperhero) => Superhero.fromJson(rawSuperhero))
           .toList();
       final List<SuperheroInfo> found = superheroes.map((superhero) {
-        return SuperheroInfo(
-            id: superhero.id,
-            name: superhero.name,
-            realName: superhero.biography.fullName,
-            imageUrl: superhero.image.url
-        );
+        return SuperheroInfo.fromSuperhero(superhero);
       }).toList();
 
       return found;
@@ -107,16 +107,6 @@ class MainBloc {
   }
 
   Stream<MainPageState> observeMainPageState() => stateSubject;
-
-  void removeFavorite() {
-    final List<SuperheroInfo> currentFavorites = favoriteSuperheroSubject.value;
-    if (currentFavorites.isEmpty) {
-      favoriteSuperheroSubject.add(SuperheroInfo.mocked);
-    } else {
-      favoriteSuperheroSubject
-          .add(currentFavorites.sublist(0, currentFavorites.length - 1));
-    }
-  }
 
   void nextState() {
     final currentState = stateSubject.value;
@@ -132,11 +122,11 @@ class MainBloc {
 
   void dispose() {
     stateSubject.close();
-    favoriteSuperheroSubject.close();
     searchedSuperheroSubject.close();
     currentTextSubject.close();
     client?.close();
     textSubscription?.cancel();
+    searchSubscription?.cancel();
   }
 }
 
@@ -163,8 +153,16 @@ class SuperheroInfo {
     required this.imageUrl,
   });
 
-  @override
+  factory SuperheroInfo.fromSuperhero(final Superhero superhero) {
+    return SuperheroInfo(
+      id: superhero.id,
+      name: superhero.name,
+      realName: superhero.biography.fullName,
+      imageUrl: superhero.image.url,
+    );
+  }
 
+  @override
   static const mocked = [
     SuperheroInfo(
         id: "70",
@@ -190,7 +188,6 @@ class SuperheroInfo {
   String toString() {
     return 'SuperheroInfo{id: $id, name: $name, realName: $realName, imageUrl: $imageUrl}';
   }
-
 }
 
 class MainPageStateInfo {

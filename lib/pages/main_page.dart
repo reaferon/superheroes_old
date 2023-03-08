@@ -172,28 +172,14 @@ class MainPageStateWidget extends StatelessWidget {
           case MainPageState.minSymbols:
             return MinSymbolsWidget();
           case MainPageState.noFavorites:
-            return Stack(
-              children: [
-                NoFavoritesWidget(searchFieldFocusNode: searchFieldFocusNode,),
-                Align(
-                    alignment: Alignment.bottomCenter,
-                    child: ActionButton(text: "Remove", onTap: bloc.removeFavorite)
-                )
-              ],
-            );
+            return
+                NoFavoritesWidget(searchFieldFocusNode: searchFieldFocusNode,);
+
           case MainPageState.favorites:
-            return Stack(
-              children: [
-                SuperheroesList(
+            return SuperheroesList(
                   title: "Your favorites",
                   stream: bloc.observeFavoriteSuperheroes(),
-                ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ActionButton(text: "Remove", onTap: bloc.removeFavorite)
-                )
-              ],
-            );
+                );
           case MainPageState.searchResults:
             return SuperheroesList(
               title: "Search results",
