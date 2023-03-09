@@ -16,6 +16,7 @@ class MainBloc {
 
   StreamSubscription? textSubscription;
   StreamSubscription? searchSubscription;
+  StreamSubscription? removeFromFavoriteSubscription;
 
   http.Client? client;
 
@@ -55,6 +56,18 @@ class MainBloc {
       }
     }, onError: (error, stackTrace) {
       stateSubject.add(MainPageState.loadingError);
+    });
+  }
+
+  void removeFromFavorites(final String id) {
+    removeFromFavoriteSubscription?.cancel();
+    removeFromFavoriteSubscription = FavoriteSuperheroesStorage.getInstance()
+        .removeFromFavorites(id)
+        .asStream()
+        .listen((event) {
+      print("Removed from $event");
+    }, onError: (error, stackTrace) {
+      print("Error in requestSuperhero: $error, $stackTrace");
     });
   }
 
@@ -127,6 +140,7 @@ class MainBloc {
     client?.close();
     textSubscription?.cancel();
     searchSubscription?.cancel();
+    removeFromFavoriteSubscription?.cancel();
   }
 }
 
