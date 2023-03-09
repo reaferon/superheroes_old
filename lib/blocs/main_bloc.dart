@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:rxdart/rxdart.dart';
 import 'package:superheroes/exception/api_exception.dart';
 import 'package:superheroes/favorite_superheroes_storage.dart';
+import 'package:superheroes/model/alignment_info.dart';
 import 'package:superheroes/model/superhero.dart';
 
 class MainBloc {
@@ -21,7 +22,6 @@ class MainBloc {
   http.Client? client;
 
   MainBloc({this.client}) {
-    stateSubject.add(MainPageState.noFavorites);
 
     textSubscription =
         Rx.combineLatest2<String, List<Superhero>, MainPageStateInfo>(
@@ -159,12 +159,14 @@ class SuperheroInfo {
   final String name;
   final String realName;
   final String imageUrl;
+  final AlignmentInfo? alignmentInfo;
 
   const SuperheroInfo({
     required this.id,
     required this.name,
     required this.realName,
     required this.imageUrl,
+    this.alignmentInfo
   });
 
   factory SuperheroInfo.fromSuperhero(final Superhero superhero) {
@@ -173,6 +175,7 @@ class SuperheroInfo {
       name: superhero.name,
       realName: superhero.biography.fullName,
       imageUrl: superhero.image.url,
+      alignmentInfo: superhero.biography.alignmentInfo
     );
   }
 

@@ -19,6 +19,7 @@ dependencies:
   json_annotation: ^4.8.0
   cached_network_image: ^3.2.3
   shared_preferences: ^2.0.18
+  golden_toolkit: ^0.15.0
 
 dev_dependencies:
   flutter_test:

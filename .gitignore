@@ -1,4 +1,5 @@
 *.env
+**/failuers/*.png
 # Miscellaneous
 *.class
 *.log
