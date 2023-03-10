@@ -272,39 +272,47 @@ class ListTile extends StatelessWidget {
             builder: (context) => SuperheroPage(id: superhero.id)));
       },
     );
-    if (ableToSwipe) {
+
       return Padding(
         padding: const EdgeInsets.only(left: 16, right: 16),
-        child: Dismissible(
+        child: ableToSwipe ? Dismissible(
           key: ValueKey(superhero.id),
           child: card,
-          background: Container(
-            height: 70,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: SuperheroesColors.red,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              "Remove from favorites".toUpperCase(),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          background: BackgroundCard(isLeft: true,),
+          secondaryBackground: BackgroundCard(isLeft: false,),
           onDismissed: (_) => bloc.removeFromFavorites(superhero.id),
-        ),
+        ) : card,
       );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16),
-        child: card,
-      );
-    }
   }
 }
+
+class BackgroundCard extends StatelessWidget {
+  final bool isLeft;
+  const BackgroundCard({Key? key, required this.isLeft}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+      decoration: BoxDecoration(
+        color: SuperheroesColors.red,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        "Remove\nfrom\nfavorites".toUpperCase(),
+        textAlign: isLeft ? TextAlign.left : TextAlign.right,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 
 class ListTitleWidget extends StatelessWidget {
   const ListTitleWidget({
