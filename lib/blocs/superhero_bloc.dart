@@ -11,6 +11,7 @@ class SuperheroBloc {
   http.Client? client;
   final String id;
   final superheroSubject = BehaviorSubject<Superhero>();
+  final superheroPageStateSubject = BehaviorSubject<SuperheroPageState>();
 
   StreamSubscription? getFromFavoriteSubscription;
   StreamSubscription? requestSubscription;
@@ -29,8 +30,11 @@ class SuperheroBloc {
         .listen((superhero) {
       if (superhero != null) {
         superheroSubject.add(superhero);
+        superheroPageStateSubject.add(SuperheroPageState.loaded);
+      } else {
+        superheroPageStateSubject.add(SuperheroPageState.loading);
       }
-      requestSuperhero();
+      requestSuperhero(superhero != null);
     }, onError: (error, stackTrace) {
       print("Error in requestSuperhero: $error, $stackTrace");
     });
@@ -67,18 +71,28 @@ class SuperheroBloc {
   Stream<bool> observeIsFavorite() =>
       FavoriteSuperheroesStorage.getInstance().observeIsFavorite(id);
 
-  Stream<Superhero> observeSuperhero() => superheroSubject;
+  Stream<Superhero> observeSuperhero() => superheroSubject.distinct();
+  Stream<SuperheroPageState> observeSuperheroPageState() => superheroPageStateSubject.distinct();
 
-  void requestSuperhero() {
+  void requestSuperhero(final bool isInFavorites) {
     requestSubscription?.cancel();
     requestSubscription = request().asStream().listen((superhero) {
       superheroSubject.add(superhero);
+      superheroPageStateSubject.add(SuperheroPageState.loaded);
     }, onError: (error, stackTrace) {
-      print("Error in requestSuperhero: $error, $stackTrace");
+      if(!isInFavorites) {
+        superheroPageStateSubject.add(SuperheroPageState.error);
+      }
     });
   }
 
+  void retry() {
+    superheroPageStateSubject.add(SuperheroPageState.loading);
+    requestSuperhero(false);
+  }
+
   Future<Superhero> request() async {
+    //await Future.delayed(Duration(seconds: 3));
     final token = dotenv.env["SUPERHERO_TOKEN"];
     final response = await (client ??= http.Client())
         .get(Uri.parse("https://superheroapi.com/api/$token/$id"));
@@ -92,8 +106,9 @@ class SuperheroBloc {
     final decoded = json.decode(response.body);
 
     if (decoded['response'] == 'success') {
-      print(Superhero.fromJson(decoded));
-      return Superhero.fromJson(decoded);
+      final superhero = Superhero.fromJson(decoded);
+      await FavoriteSuperheroesStorage.getInstance().updateIfInFavorites(superhero);
+      return superhero;
     } else if (decoded['response'] == 'error') {
       throw ApiException("Client error happened");
     }
@@ -107,5 +122,8 @@ class SuperheroBloc {
     addToFavoriteSubscription?.cancel();
     removeFromFavoriteSubscription?.cancel();
     superheroSubject.close();
+    superheroPageStateSubject.close();
   }
 }
+
+enum SuperheroPageState {loading, loaded, error}

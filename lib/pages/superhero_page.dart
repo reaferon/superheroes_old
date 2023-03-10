@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:superheroes/widgets/alignment_widget.dart';
 
 import '../blocs/superhero_bloc.dart';
+import '../widgets/info_with_button.dart';
 
 class SuperheroPage extends StatefulWidget {
   final http.Client? client;
@@ -58,6 +59,86 @@ class SuperheroContentPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final bloc = Provider.of<SuperheroBloc>(context, listen: false);
 
+    return StreamBuilder<SuperheroPageState>(
+      stream: bloc.observeSuperheroPageState(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const SizedBox.shrink();
+        }
+        final state = snapshot.data!;
+        switch (state) {
+          case SuperheroPageState.loading:
+            return SuperheroLoadingWidget();
+          case SuperheroPageState.loaded:
+            return SuperheroLoadedWidget();
+          case SuperheroPageState.error:
+          default:
+            return SuperheroErrorWidget();
+        }
+      },
+    );
+  }
+}
+
+class SuperheroLoadingWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          backgroundColor: SuperheroesColors.background,
+        ),
+        SliverToBoxAdapter(
+          child: Container(
+            margin: EdgeInsets.only(top: 60),
+            height: 44,
+            width: 44,
+            alignment: Alignment.topCenter,
+            child: CircularProgressIndicator(
+              color: SuperheroesColors.blue,
+            ),
+          ),
+        )
+      ],
+    );
+  }
+}
+
+class SuperheroErrorWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final bloc = Provider.of<SuperheroBloc>(context, listen: false);
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          backgroundColor: SuperheroesColors.background,
+        ),
+        SliverToBoxAdapter(
+          child: Container(
+            margin: EdgeInsets.only(top: 60),
+
+            alignment: Alignment.topCenter,
+            child: InfoWithButton(
+              title: "Error happened",
+              subtitle: "Please, try again",
+              buttonText: "Retry",
+              assetImage: SuperheroesImages.superman,
+              imageHeight: 106,
+              imageWidth: 126,
+              imageTopPadding: 22,
+              onTap: bloc.retry,
+            ),
+          ),
+        )
+      ],
+    );
+  }
+}
+
+class SuperheroLoadedWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final bloc = Provider.of<SuperheroBloc>(context, listen: false);
     return StreamBuilder<Superhero>(
         stream: bloc.observeSuperhero(),
         builder: (context, snapshot) {
